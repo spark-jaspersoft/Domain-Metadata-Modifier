@@ -14,7 +14,7 @@ class DomainMetadataModHelperTest(unittest.TestCase):
 
     def setUp(self):
         self.domainMetadataModHelper = DomainMetadataModHelper()
-        self.inputs = ['/path/to/domainMetadataMod', '/tmp/ThePath', 'Domain_Test', 'name1']
+        self.inputs = ['executable', self.TEST_URL, self.TEST_PASSWORD, 'Domain_Test', 'name1']
 
     def tearDown(self):
         pass
@@ -31,28 +31,24 @@ class DomainMetadataModHelperTest(unittest.TestCase):
     def testProcessInputsIsSingle(self):
         self.domainMetadataModHelper.processInputs(self.inputs)
         self.assertIsNone(self.domainMetadataModHelper.newfieldname, 'newfieldname should not be set')
-        self.assertFalse(self.domainMetadataModHelper.is_rename, 'is_rename should not have been changed from False to True')
         
     def testProcessInputsIsMultiple(self):
-        self.inputs[3] = 'name1,name2'
+        self.inputs[4] = 'name1,name2'
         self.domainMetadataModHelper.processInputs(self.inputs)
         self.assertEqual(self.domainMetadataModHelper.fieldname, ['name1','name2'])
         self.assertIsNone(self.domainMetadataModHelper.newfieldname, 'newfieldname should not be set')
-        self.assertFalse(self.domainMetadataModHelper.is_rename, 'is_rename should not have been changed from False to True')
         
     def testProcessInputsIsDBRename(self):
         new_field = 'name4'
         self.inputs.append(new_field)
         self.domainMetadataModHelper.processInputs(self.inputs)
         self.assertEqual(new_field, self.domainMetadataModHelper.newfieldname, 'newfieldname should be set')
-        self.assertTrue(self.domainMetadataModHelper.is_rename, 'is_rename was not changed from False to True')
         
     def testProcessInputsIsDBRenameMultiple(self):
-        self.inputs[3] = 'name1,name2'
+        self.inputs[4] = 'name1,name2'
         self.inputs.append('name4,name5')
         self.domainMetadataModHelper.processInputs(self.inputs)
         self.assertEqual(['name4','name5'], self.domainMetadataModHelper.newfieldname, 'newfieldname not set correctly')
-        self.assertTrue(self.domainMetadataModHelper.is_rename, 'is_rename was not changed from False to True')
         
     def testProcessInputsNotEnoughParams(self):
         del self.inputs[3]

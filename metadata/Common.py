@@ -10,6 +10,7 @@ class Common():
     
     RELATIVE_PATH = '.'
     REPO_PATH_SEPARATOR = '/'
+    WINDOWS_PATH_SEPARATOR = '\\'
     DATA_SOURCE = 'dataSource'
     MEASURE = 'measure'
     ID = 'id'
@@ -18,6 +19,9 @@ class Common():
     NAME = 'name'
     VALUE = 'value'
     WIDTH = 'width'
+    LABEL = 'label'
+    LABEL_ID = LABEL + 'Id'
+    LABEL_OVERRIDE = LABEL + 'Override'
     QUERY_DIMENSION = 'queryDimension'
     QUERY_STRING = "n:queryString"
     QUERY_FIELD = 'queryField'
@@ -28,6 +32,7 @@ class Common():
     DISTANCE_TO_TAG_START = 16
     DISTANCE_TO_TAG_END = 4
     SORT_ORDER = 'semantic.tree.sort.order'
+    RESOURCE_ID = 'resourceId'
     ITEM = 'n:item'
     JOIN_STRING = 'n:joinString'
     JRXML_NAMESPACE = {'n':'http://jasperreports.sourceforge.net/jasperreports'}
@@ -41,11 +46,17 @@ class Common():
     PHASE_FAILURE_STATUS = 'failed'
     LOCAL_RESOURCE = 'localResource'
     DATA_FILE = 'dataFile'
+    STATE_XML = 'stateXML'
+    TOPIC_JRXML = 'topicJRXML'
+    MAIN_REPORT_JRXML = 'mainReportJrxml'
     EXPRESSION_STRING = 'expressionString'
     DOMAIN_METADATA_TAG = 'semanticLayerDataSource'
+    TEXTFIELD_EXPR_TAG = 'n:textFieldExpression'
     ADHOC_TOPIC_TAG = 'dataDefinerUnit'
     ADHOC_VIEW_TAG = 'adhocDataView'
     REPORT_TAG = 'reportUnit'
+    RESOURCE_TAG = 'resource'
+    STYLE_TAG = 'style'
     RESOURCES_FOLDER = 'resources'
     PROPERTIES_EXT = '.properties'
     STATE_DATAFILE = 'stateXML.data'
@@ -82,6 +93,7 @@ class Common():
     MESSAGE = 'message'
     FIVE_SECONDS = 5
     ZIP_EXT = '.zip'
+    VISIBLE_LEVEL_STRING = 'visibleLevels' + REPO_PATH_SEPARATOR + 'string'
     
     def removeDeclarationNode(self, xml_string):
         dec_end = xml_string.find('?>')
@@ -108,3 +120,11 @@ class Common():
         consoleHandler.setFormatter(logFormatter)
         log.addHandler(consoleHandler)
         return log
+    
+    def fixVisibleLevels(self, root, fieldname, newfieldname, log):
+        if newfieldname is not None and newfieldname != '_':
+            for visible in root.xpath(Common.REPO_PATH_SEPARATOR + Common.REPO_PATH_SEPARATOR + Common.VISIBLE_LEVEL_STRING):
+                visibleStrText = visible.text
+                if visibleStrText.find(fieldname) >= 0:
+                    log.debug('replacing visibleLevels string ' + visibleStrText + ' with ' + visibleStrText.replace(fieldname, newfieldname))
+                    visible.text = visibleStrText.replace(fieldname, newfieldname)

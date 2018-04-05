@@ -5,12 +5,13 @@ Created on Sep 26, 2017
 '''
 import unittest
 import os
-from lxml import etree
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, PropertyMock
 from metadata.FileFinder import FileFinder
 from metadata.Common import Common
 
 class FileFinderTest(unittest.TestCase):
+    
+    common = Common()
     
     DOMAIN_SCHEMA_FILE = """<?xml version="1.0" encoding="UTF-8"?>
 <semanticLayerDataSource>
@@ -150,6 +151,7 @@ class FileFinderTest(unittest.TestCase):
 
     def setUp(self):
         self.fileFinder = FileFinder()
+        self.log = self.common.configureLogging()
         curr_folder = Common.REPO_PATH_SEPARATOR + self.TMPPATH
         self.fileFinder.resources_folder = curr_folder
         self.domain_metadata_file_path = curr_folder + Common.REPO_PATH_SEPARATOR + self.DOMAIN_NAME + self.XML_EXT
@@ -197,46 +199,50 @@ class FileFinderTest(unittest.TestCase):
         self.fileFinder.domain_id = self.DOMAIN_NAME
         mock_root = MagicMock(name = 'mock_root');
         mock_root.tag.find.side_effect = [-1, 0]
-        mock_node1 = etree.Element('mock_node1')
-        mock_node1.text = Common.REPO_PATH_SEPARATOR + self.DOMAIN_NAME
+        mock_node1 = MagicMock(name='mock_node1')
+        mock_node1_text = PropertyMock(return_value=Common.REPO_PATH_SEPARATOR + self.DOMAIN_NAME)
+        type(mock_node1).text = mock_node1_text
         node_list = [mock_node1]
         mock_root.xpath = MagicMock(side_effect=[node_list])
         self.assertTrue(self.fileFinder.checkDatasource(mock_root))
 
-    def testFindDomainSchemaFile(self):
+    def testFindDomainSchema(self):
         schema_filename = 'schema.data'
         self.fileFinder.domain_id = self.DOMAIN_NAME
-        # TODO: figure out a way to mock the lxml.etree.Element.text property (tried several approaches, including PropertyMock, and none worked)
-        mock_grandchild = etree.Element('mock_grandchild')
-        mock_grandchild.text = ''
+        mock_grandchild = MagicMock(name='mock_grandchild')
+        mock_grandchild_text = PropertyMock(return_value='')
+        type(mock_grandchild).text = mock_grandchild_text
         mock_root = MagicMock(name = 'mock_root')
         mock_node1 = MagicMock(name = 'mock_node1')
         mock_node1.get.return_value = schema_filename
         mock_node1.__getitem__.return_value = mock_grandchild
         node_list = [mock_node1]
         mock_root.xpath = MagicMock(side_effect=[node_list])
-        found_file = self.fileFinder.findDomainSchemaFile(root=mock_root)
+        found_file = self.fileFinder.findDomainSchema(root=mock_root, log=self.log)
         self.assertIsNotNone(found_file, 'findDomainSchemaFile should not return none')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + schema_filename, found_file, 'domain schema file not found')
             
-    def testFindDomainSchema(self):
-        found_file = self.fileFinder.findDomainSchema(metadata_filename=self.domain_metadata_file_path)
+    def testFindDomainSchemaFile(self):
+        found_file = self.fileFinder.findDomainSchemaFile(metadata_filename=self.domain_metadata_file_path, log=self.log)
         self.assertIsNotNone(found_file, 'findDomainSchema should not return none')
         test_domain_schema_file = '/tmp/schema.data'
         self.assertEqual(test_domain_schema_file, found_file, 'domain schema file names do not match')
     
-    def testFindAdHocTopicFiles(self):
+    def testFindAdHocTopic(self):
         state_file = 'stateXML.data'
         jrxml_file = 'slJRXML.data'
         self.fileFinder.domain_id = self.DOMAIN_NAME
         self.fileFinder.adhoc_topic_files_list = []
-        # TODO: figure out a way to mock the lxml.etree.Element.text property (tried several approaches, including PropertyMock, and none worked)
-        mock_grandchild = etree.Element('mock_grandchild')
-        mock_grandchild.text = self.DOMAIN_NAME
-        mock_grandchild2 = etree.Element('mock_grandchild2')
-        mock_grandchild2.text = None
+        mock_grandchild = MagicMock(name='mock_grandchild')
+        mock_grandchild_text = PropertyMock(return_value=self.DOMAIN_NAME)
+        type(mock_grandchild).text = mock_grandchild_text
+        mock_grandchild.text = MagicMock(return_value=self.DOMAIN_NAME)
+        mock_grandchild2 = MagicMock(name='mock_grandchild2')
+        mock_grandchild2_text = PropertyMock(return_value=None)
+        type(mock_grandchild2).text = mock_grandchild2_text 
         mock_root = MagicMock(name = 'mock_root')
-        mock_root.tag.find.return_value = 0
+        mock_root_tag = PropertyMock(return_value=Common.DOMAIN_METADATA_TAG)
+        type(mock_root).tag = mock_root_tag
         mock_node1 = MagicMock(name = 'mock_node1')
         mock_node1.text.find.return_value = 0
         mock_node2 = MagicMock(name = 'mock_node2')
@@ -248,48 +254,49 @@ class FileFinderTest(unittest.TestCase):
         mock_node3.__getitem__.return_value = mock_grandchild2
         mock_node3.get.return_value = state_file
         node_list2 = [mock_node3]
-        mock_node4 = etree.Element('mock_node4')
-        mock_node4.text = self.ADHOC_TOPIC_NAME
+        mock_node4 = MagicMock(name='mock_node4')
+        mock_node4_text = PropertyMock(return_value=self.ADHOC_TOPIC_NAME)
+        type(mock_node4).text = mock_node4_text
         mock_root.__getitem__.side_effect = [mock_node1, mock_grandchild]
         mock_root.xpath = MagicMock(side_effect = [node_list1, node_list2])
-        self.fileFinder.findAdhocTopicFiles(root=mock_root, adhoc_topic_id=self.ADHOC_TOPIC_NAME)
+        self.fileFinder.findAdhocTopic(root=mock_root, adhoc_topic_id=self.ADHOC_TOPIC_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.adhoc_topic_files_list, 'Ad Hoc topic files not found')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + state_file, self.fileFinder.adhoc_topic_files_list[0][0], 'state file not found')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR +  jrxml_file, self.fileFinder.adhoc_topic_files_list[0][1], 'jrxml file not found')
         
-    def testFindAdHocTopicFilesIDDoesNotMatch(self):
+    def testFindAdHocTopicIDDoesNotMatch(self):
         self.fileFinder.adhoc_topic_files_list = []
         mock_root = MagicMock(name = 'mock_root')
         mock_node1 = MagicMock(name = 'mock_node1')
         mock_node1.text.find.return_value = -1
         mock_root.__getitem__.return_value = mock_node1
-        self.fileFinder.findAdhocTopicFiles(root=mock_root, adhoc_topic_id=self.ADHOC_TOPIC_NAME)
+        self.fileFinder.findAdhocTopic(root=mock_root, adhoc_topic_id=self.ADHOC_TOPIC_NAME, log=self.log)
         self.assertEqual([], self.fileFinder.adhoc_topic_files_list, 'ad hoc topic files should not be found')
             
-    def testFindAdHocTopic(self):
+    def testFindAdHocTopicFiles(self):
         self.fileFinder.adhoc_topic_files_list = []
         self.fileFinder.domain_id = self.DOMAIN_NAME
-        self.fileFinder.findAdhocTopic(metadata_filename=self.adhoc_topic_metadata_file_path, adhoc_topic_id=self.ADHOC_TOPIC_NAME)
+        self.fileFinder.findAdhocTopicFiles(metadata_filename=self.adhoc_topic_metadata_file_path, adhoc_topic_id=self.ADHOC_TOPIC_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.adhoc_topic_files_list, 'Ad Hoc topic files list is empty')
         test_adhoc_topic_state_file = '/tmp/domainQuery.xml.data'
         self.assertEqual(test_adhoc_topic_state_file, self.fileFinder.adhoc_topic_files_list[0][0], 'ad hoc topic state file names do not match')
         test_adhoc_topic_report_file = '/tmp/slJRXML.data'
         self.assertEqual(test_adhoc_topic_report_file, self.fileFinder.adhoc_topic_files_list[0][1], 'jrxml report file names do not match')
         
-    def testFindAdHocTopicIDDoesNotMatch(self):
+    def testFindAdHocTopicFilesIDDoesNotMatch(self):
         self.fileFinder.adhoc_topic_files_list = []
         self.fileFinder.domain_id = self.DOMAIN_NAME
-        self.fileFinder.findAdhocTopic(metadata_filename=self.adhoc_topic_metadata_file_path, adhoc_topic_id='Some_Other_Topic')
+        self.fileFinder.findAdhocTopicFiles(metadata_filename=self.adhoc_topic_metadata_file_path, adhoc_topic_id='Some_Other_Topic', log=self.log)
         self.assertEqual([], self.fileFinder.adhoc_topic_files_list, 'Ad Hoc topic files should not be found')
         
-    def testFindAdHocViewFiles(self):
+    def testFindAdHocView(self):
         state_filename = 'stateXML.data'
         jrxml_filename = 'topicJRXML.data'
         self.fileFinder.adhoc_view_files_list = []
         self.fileFinder.domain_id = self.DOMAIN_NAME
-        # TODO: figure out a way to mock the lxml.etree.Element.text property (tried several approaches, including PropertyMock, and none worked)
-        mock_grandchild = etree.Element('mock_grandchild')
-        mock_grandchild.text = ''
+        mock_grandchild = MagicMock(name='mock_grandchild')
+        mock_grandchild_text = PropertyMock(return_value='')
+        type(mock_grandchild).text = mock_grandchild_text
         mock_root = MagicMock(name = 'mock_root')
         mock_root.tag.find.return_value = 0
         mock_node1 = MagicMock(name = 'mock_node1')
@@ -298,48 +305,53 @@ class FileFinderTest(unittest.TestCase):
         mock_node2 = MagicMock(name = 'mock_node2')
         mock_node2.get.return_value = jrxml_filename
         mock_node3 = MagicMock(name = 'mock_node3')
-        mock_node3.text.find.side_effect = [ 0, -1 ]
+        mock_node3_text = PropertyMock(return_value=state_filename)
+        type(mock_node3).text = mock_node3_text
+        mock_node4 = MagicMock(name = 'mock_node4')
+        mock_node4_text = PropertyMock(return_value=jrxml_filename)
+        type(mock_node4).text = mock_node4_text
         mock_node1.__getitem__.side_effect = [mock_node3, mock_grandchild]
-        mock_node2.__getitem__.side_effect = [mock_node3, mock_grandchild]
+        mock_node2.__getitem__.side_effect = [mock_node4, mock_grandchild]
         node_list = [mock_node1, mock_node2]
         mock_root.__getitem__.side_effect = [mock_node1, mock_node1]
-        mock_root.xpath = MagicMock(side_effect = [node_list, node_list])
-        self.fileFinder.findAdhocViewFiles(root=mock_root, adhoc_view_id=self.ADHOC_VIEW_NAME)
+        mock_root.xpath = MagicMock(side_effect = [node_list, []])
+        self.fileFinder.findAdhocView(root=mock_root, adhoc_view_id=self.ADHOC_VIEW_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.adhoc_view_files_list, 'Ad Hoc view files not found')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + state_filename, self.fileFinder.adhoc_view_files_list[0][0], 'state file not found')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR +  jrxml_filename, self.fileFinder.adhoc_view_files_list[0][1], 'jrxml file not found')
     
-    def testFindAdHocViewFilesIDDoesNotMatch(self):
+    def testFindAdHocViewIDDoesNotMatch(self):
         mock_root = MagicMock(name = 'mock_root')
         mock_node1 = MagicMock(name = 'mock_node1')
         mock_node1.text.find.return_value = -1
         mock_root.__getitem__.return_value = mock_node1
-        self.fileFinder.findAdhocViewFiles(root=mock_root, adhoc_view_id=self.ADHOC_VIEW_NAME)
+        self.fileFinder.findAdhocView(root=mock_root, adhoc_view_id=self.ADHOC_VIEW_NAME, log=self.log)
         self.assertEqual([], self.fileFinder.adhoc_view_files_list, 'ad hoc view files should not have been found')
             
-    def testFindAdHocView(self):
+    def testFindAdHocViewFiles(self):
         self.fileFinder.domain_id = self.DOMAIN_NAME
         self.fileFinder.adhoc_view_files_list = []
-        self.fileFinder.findAdhocView(metadata_filename=self.adhoc_view_metadata_file_path, adhoc_view_id=self.ADHOC_VIEW_NAME)
+        self.fileFinder.findAdhocViewFiles(metadata_filename=self.adhoc_view_metadata_file_path, adhoc_view_id=self.ADHOC_VIEW_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.adhoc_view_files_list, 'Ad Hoc view files not found')
         test_adhoc_view_state_file = '/tmp/stateXML.data'
         self.assertEqual(test_adhoc_view_state_file, self.fileFinder.adhoc_view_files_list[0][0], 'ad hoc view state file names do not match')
         test_adhoc_view_report_file = '/tmp/topicJRXML.data'
         self.assertEqual(test_adhoc_view_report_file, self.fileFinder.adhoc_view_files_list[0][1], 'jrxml report file names do not match')
         
-    def testFindAdHocViewIDDoesNotMatch(self):
-        self.fileFinder.findAdhocView(metadata_filename=self.adhoc_view_metadata_file_path, adhoc_view_id='Some_Other_View')
+    def testFindAdHocViewFilesIDDoesNotMatch(self):
+        self.fileFinder.findAdhocViewFiles(metadata_filename=self.adhoc_view_metadata_file_path, adhoc_view_id='Some_Other_View', log=self.log)
         self.assertEqual([], self.fileFinder.adhoc_view_files_list, 'Ad Hoc view files should not be found')
         
-    def testFindReportFiles(self):
+    def testFindReport(self):
         state_filename = 'stateXML.data'
         jrxml_filename = 'mainReportJrxml.data'
         self.fileFinder.report_list = []
-        # TODO: figure out a way to mock the lxml.etree.Element.text property (tried several approaches, including PropertyMock, and none worked)
-        mock_grandchild = etree.Element('mock_grandchild')
-        mock_grandchild.text = self.TMPPATH
-        mock_grandchild2 = etree.Element('mock_grandchild2')
-        mock_grandchild2.text = None
+        mock_grandchild = MagicMock(name='mock_grandchild')
+        mock_grandchild_text = PropertyMock(return_value=self.TMPPATH)
+        type(mock_grandchild).text = mock_grandchild_text
+        mock_grandchild2 = MagicMock(name='mock_grandchild2')
+        mock_grandchild2_text = PropertyMock(return_value=None)
+        type(mock_grandchild2).text = mock_grandchild2_text
         mock_root = MagicMock(name = 'mock_root')
         mock_root.tag.find.return_value = 0
         mock_node1 = MagicMock(name = 'mock_node1')
@@ -355,19 +367,19 @@ class FileFinderTest(unittest.TestCase):
         mock_root.__getitem__.return_value = mock_node1
         node_list2 = [mock_node3]
         mock_root.xpath = MagicMock(side_effect = [node_list2, node_list1])
-        self.fileFinder.findReportFiles(root=mock_root, report_id=self.REPORT_NAME)
+        self.fileFinder.findReport(root=mock_root, report_id=self.REPORT_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.report_list, 'Report files not found')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + state_filename, self.fileFinder.report_list[0][0], 'state filenames do not match')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + jrxml_filename, self.fileFinder.report_list[0][1], 'report filenames do not match')
         
-    def testFindStaticReportFiles(self):
+    def testFindStaticReport(self):
         jrxml_filename = 'main_jrxml.data'
         self.fileFinder.report_list = []
-        # TODO: figure out a way to mock the lxml.etree.Element.text property (tried several approaches, including PropertyMock, and none worked)
-        mock_grandchild = etree.Element('mock_grandchild')
-        mock_grandchild.text = self.TMPPATH
-        mock_grandchild2 = etree.Element('mock_grandchild2')
-        mock_grandchild2.text = None
+        mock_grandchild = MagicMock(name='mock_grandchild')
+        mock_grandchild.text = MagicMock(return_value=self.TMPPATH)
+        mock_grandchild2 = MagicMock(name='mock_grandchild2')
+        mock_grandchild2_text = PropertyMock(return_value=None)
+        type(mock_grandchild2).text = mock_grandchild2_text
         mock_root = MagicMock(name = 'mock_root')
         mock_root.tag.find.return_value = 0
         mock_node1 = MagicMock(name = 'mock_node1')
@@ -378,24 +390,24 @@ class FileFinderTest(unittest.TestCase):
         mock_root.__getitem__.return_value = mock_node1
         node_list1 = [mock_node2]
         mock_root.xpath = MagicMock(side_effect = [node_list1, []])
-        self.fileFinder.findReportFiles(root=mock_root, report_id=self.REPORT_NAME)
+        self.fileFinder.findReport(root=mock_root, report_id=self.REPORT_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.report_list, 'Report files not found')
         self.assertIsNone(self.fileFinder.report_list[0][0], 'state filename is not None')
         self.assertEqual(Common.REPO_PATH_SEPARATOR + self.TMPPATH + Common.REPO_PATH_SEPARATOR + jrxml_filename, self.fileFinder.report_list[0][1], 'jrxml filenames do not match')
         
-    def testFindReportFilesIDDoesNotMatch(self):
+    def testFindReportIDDoesNotMatch(self):
         self.fileFinder.adhoc_view_files_list = []
         self.fileFinder.report_list = []
         mock_root = MagicMock(name = 'mock_root')
         mock_node1 = MagicMock(name = 'mock_node1')
         mock_node1.text.find.return_value = -1
         mock_root.__getitem__.return_value = mock_node1
-        self.fileFinder.findReportFiles(root=mock_root, report_id=self.REPORT_NAME)
+        self.fileFinder.findReport(root=mock_root, report_id=self.REPORT_NAME, log=self.log)
         self.assertEqual([], self.fileFinder.report_list, 'report files should not have been found')
             
-    def testFindReport(self):
+    def testFindReportFiles(self):
         self.fileFinder.domain_id = self.DOMAIN_NAME
-        self.fileFinder.findReport(metadata_filename=self.report_metadata_file_path, report_id=self.REPORT_NAME)
+        self.fileFinder.findReportFiles(metadata_filename=self.report_metadata_file_path, report_id=self.REPORT_NAME, log=self.log)
         self.assertNotEqual([], self.fileFinder.report_list, 'report files not found')
         test_report_state_file = '/tmp/stateXML.data'
         self.assertEqual(test_report_state_file, self.fileFinder.report_list[0][0], 'report state file names do not match')

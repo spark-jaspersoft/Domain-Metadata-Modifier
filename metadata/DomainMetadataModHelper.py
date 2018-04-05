@@ -23,7 +23,7 @@ class DomainMetadataModHelper():
     domain_id = None
     fieldname = None
     newfieldname = None
-    is_rename = False
+    newdbcolname = None
     
     def connectToServer(self, log):
         self.session = requests.post(self.server_URL + Common.LOGIN_PATH, data={Common.J_USERNAME:'superuser', Common.J_PASSWORD:self.server_pass})
@@ -80,6 +80,9 @@ class DomainMetadataModHelper():
                 if phase == Common.PHASE_READY_STATUS:
                     _, tmpfile = tempfile.mkstemp()
                     tmpfilefile = tmpfile[tmpfile.rfind(Common.REPO_PATH_SEPARATOR) + 1:]
+                    # check to see if we're on Windows
+                    if tmpfilefile.find(Common.WINDOWS_PATH_SEPARATOR) >= 0:
+                        tmpfilefile = tmpfilefile[tmpfilefile.rfind(Common.WINDOWS_PATH_SEPARATOR) + 1:]
                     log.debug('export finished, starting download to ' + tmpfile)
                     downloadRestCall = (self.server_URL + Common.REPO_PATH_SEPARATOR + Common.REST_V2 +
                                     Common.REPO_PATH_SEPARATOR + Common.EXPORT +
@@ -95,9 +98,15 @@ class DomainMetadataModHelper():
                             h.write(savingResult.content)
                         tmpdir = tempfile.mkdtemp()
                         zipRef = zipfile.ZipFile(tmpfile, 'r')
+                        log.debug('extracting zip archive ' + tmpfile + ' to ' + tmpdir)
                         zipRef.extractall(tmpdir)
                         zipRef.close()
-                        os.remove(tmpfile)
+                        log.debug('finished extracting, removing zip archive')
+                        try:
+                            os.remove(tmpfile)
+                        except OSError as err:
+                            log.error('unable to remove zip archive: {0}'.format(err))
+                        log.debug('setting folderpath: ' + tmpdir)
                         self.folderpath = tmpdir
         
     def uploadImport(self, log):
@@ -106,7 +115,11 @@ class DomainMetadataModHelper():
         shutil.make_archive(tmpfile, 'zip', self.folderpath)
         log.debug('importing zip file into repository...')
         params =  {'update':'true','skipUserUpdate':'true','includeAccessEvents':'false','includeAuditEvents':'false','includeMonitoringEvents':'false','includeServerSetting':'false'}
-        headers = {'Content-Disposition':'form-data; name="File"; filename="' + tmpfile[tmpfile.rfind('/')+1:] + '"','Content-Type':'application/zip','X-Remote-Domain':'true'}
+        if tmpfile.rfind('/') == -1:
+            tmpfilename = tmpfile[tmpfile.rfind('\\')+1:]
+        else:
+            tmpfilename = tmpfile[tmpfile.rfind('/')+1:]
+        headers = {'Content-Disposition':'form-data; name="File"; filename="' + tmpfilename + '"','Content-Type':'application/zip','X-Remote-Domain':'true'}
         with open(tmpfile + Common.ZIP_EXT, 'rb') as h:
             data = h.read()
         startResult = requests.post(self.server_URL + Common.IMPORT_START_PATH, params=params, headers=headers, data=data, cookies=self.session.cookies)
@@ -164,7 +177,7 @@ class DomainMetadataModHelper():
             self.fieldname = inputs[4]
             if self.fieldname.find(',') > 0:
                 self.fieldname = self.fieldname.split(',')
-            if len(inputs) == 6:
+            if len(inputs) >= 6:
                 self.newfieldname = inputs[5]
                 if self.newfieldname.find(',') > 0:
                     self.newfieldname = self.newfieldname.split(',')
@@ -172,6 +185,16 @@ class DomainMetadataModHelper():
                         raise ValueError('Both the old and new field name parameters must be comma-separated lists')
                     if len(self.newfieldname) != len(self.fieldname):
                         raise ValueError('both the old and new field name parameter lists must be the same length')
-                self.is_rename = True
+            if len(inputs) >= 7:
+                self.newdbcolname = inputs[6]
+                if self.newdbcolname.find(',') > 0:
+                    self.newdbcolname = self.newdbcolname.split(',')
+                    if not isinstance(self.fieldname, list) or not isinstance(self.newfieldname, list):
+                        raise ValueError('Old and new field name and database column name parameters must be comma-separated lists')
+                    if len(self.newdbcolname) != len(self.fieldname) or len(self.newdbcolname) != len(self.newfieldname):
+                        raise ValueError('Old and new field name and database column name parameter lists must be the same length')
+            else:
+                # use the new field name items as the database column items
+                self.newdbcolname = self.newfieldname
         return log
         
