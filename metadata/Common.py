@@ -84,7 +84,7 @@ class Common():
     REST_V2 = 'rest_v2'
     J_USERNAME = 'j_username'
     J_PASSWORD = 'j_password'
-    LOGIN_PATH = REPO_PATH_SEPARATOR + 'rest' + REPO_PATH_SEPARATOR + 'login'
+    LOGIN_PATH = REPO_PATH_SEPARATOR + REST_V2 + REPO_PATH_SEPARATOR + 'login'
     EXPORT = 'export'
     EXPORT_START_PATH = REPO_PATH_SEPARATOR + REST_V2 + REPO_PATH_SEPARATOR + EXPORT + REPO_PATH_SEPARATOR
     IMPORT = 'import'
