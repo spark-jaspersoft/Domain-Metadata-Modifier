@@ -1,5 +1,7 @@
 # Domain-Metadata-Modifier
 
+See this article on the Jaspersoft Community Wiki for further details and related YouTube videos: https://community.jaspersoft.com/wiki/cascading-domain-changes-through-ad-hoc-topics-views-reports-and-dashboards
+
 This project is for commercial users of TIBCO JasperReports Server who wish to make domain changes. A major drawback of using domains is that making changes to a domain that contains dependent repository objects (such as Ad Hoc views, reports and dashboards) would often cause those objects to break. Users would then need to recreate the Ad Hoc views, dashboards, etc. This tool is aimed at two specific use cases:
 
 * Removing one or more existing fields from a domain and its dependent Ad Hoc views, reports and dashboards
